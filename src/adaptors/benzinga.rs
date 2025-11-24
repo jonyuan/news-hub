@@ -1,4 +1,4 @@
-use crate::models::NewsItem;
+use crate::api::NewsItem;
 use chrono::{TimeZone, Utc};
 use reqwest::Client;
 use serde::Deserialize;

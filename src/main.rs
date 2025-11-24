@@ -5,8 +5,8 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 use tokio::time::{sleep, Duration};
 
+use news_hub::adaptors::fetch_all;
 use news_hub::db::sqlite::NewsDB;
-use news_hub::fetchers::fetch_all;
 use news_hub::ui::draw_ui;
 
 #[tokio::main]

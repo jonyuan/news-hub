@@ -1,4 +1,4 @@
-use crate::models::NewsItem;
+use crate::api::NewsItem;
 use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},

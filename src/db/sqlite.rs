@@ -1,4 +1,4 @@
-use crate::models::NewsItem;
+use crate::api::NewsItem;
 use rusqlite::{params, Connection};
 
 pub struct NewsDB {

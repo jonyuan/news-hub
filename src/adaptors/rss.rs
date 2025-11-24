@@ -1,4 +1,4 @@
-use crate::models::NewsItem;
+use crate::api::NewsItem;
 use chrono::{DateTime, Utc};
 use rss::Channel;
 use uuid::Uuid;

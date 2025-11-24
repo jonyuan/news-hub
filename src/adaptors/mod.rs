@@ -4,7 +4,7 @@ mod rss;
 pub use benzinga::fetch_benzinga;
 pub use rss::fetch_rss;
 
-use crate::models::NewsItem;
+use crate::api::NewsItem;
 
 pub async fn fetch_all(api_key: &str) -> Vec<NewsItem> {
     let mut out = Vec::new();
