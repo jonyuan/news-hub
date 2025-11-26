@@ -25,3 +25,9 @@ rusqlite = { version = "0.31", features = ["chrono"] }
 # logging
 tracing = "0.1"
 tracing-subscriber = "0.3"
+
+# async trait support
+async-trait = "0.1"
+
+# browser opening
+open = "5.0"

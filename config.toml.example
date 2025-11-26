@@ -1,0 +1,10 @@
+[adapters.marketaux]
+enabled = true
+poll_interval_secs = 120
+# api_key comes from environment variable
+
+[adapters.reddit]
+enabled = true
+user_agent = "financial-news-tui:v0.1.0"
+subreddits = ["wallstreetbets", "stocks"]
+poll_interval_secs = 30

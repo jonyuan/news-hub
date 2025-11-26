@@ -28,3 +28,6 @@ target
 # Secrets
 .env
 *.key
+
+# sqlite database cache
+data/
