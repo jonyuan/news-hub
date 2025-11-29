@@ -3,7 +3,7 @@ use chrono::Utc;
 use std::fs;
 use std::path::Path;
 
-use crate::api::NewsItem;
+use crate::models::NewsItem;
 use rusqlite::{params, Connection};
 
 pub struct NewsDB {

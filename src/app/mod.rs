@@ -1,7 +1,8 @@
-use crossterm::event::KeyCode;
+use crossterm::event::Event;
 
-use crate::api::NewsItem;
+use crate::models::NewsItem;
 use crate::db::sqlite::NewsDB;
+use crate::ui::{Action, Component, NewsListComponent};
 
 /// Messages sent from background tasks to main event loop
 #[derive(Debug)]
@@ -19,17 +20,15 @@ pub enum AppState {
 
 /// Main application state
 pub struct App {
-    pub news_cache: Vec<NewsItem>,
+    pub news_list: NewsListComponent,
     pub app_state: AppState,
-    pub selected_index: usize,
 }
 
 impl App {
     pub fn new(initial_news: Vec<NewsItem>) -> Self {
         Self {
-            news_cache: initial_news,
+            news_list: NewsListComponent::new(initial_news),
             app_state: AppState::Idle,
-            selected_index: 0,
         }
     }
 
@@ -42,9 +41,9 @@ impl App {
                         eprintln!("Failed to insert item: {}", e);
                     }
                 }
-                self.news_cache = db.load_all();
+                let news = db.load_all();
+                self.news_list.set_news(news);
                 self.app_state = AppState::Idle;
-                self.selected_index = 0; // Reset to top
             }
             AppMessage::RefreshFailed(err) => {
                 eprintln!("Fetch failed: {}", err);
@@ -53,28 +52,29 @@ impl App {
         }
     }
 
-    /// Handle keyboard input
+    /// Handle keyboard/mouse events
+    /// Returns the Action emitted by components
+    pub fn handle_event(&mut self, event: &Event) -> Action {
+        let action = self.news_list.handle_event(event);
+
+        // Update all components based on the action
+        self.news_list.update(&action);
+
+        action
+    }
+
+    /// Handle an Action and perform side effects (like opening URLs)
     /// Returns false if app should quit, true otherwise
-    pub fn handle_key(&mut self, key: KeyCode) -> bool {
-        match key {
-            KeyCode::Char('q') => return false, // Signal quit
-            KeyCode::Down => {
-                if self.selected_index < self.news_cache.len().saturating_sub(1) {
-                    self.selected_index += 1;
-                }
-            }
-            KeyCode::Up => {
-                self.selected_index = self.selected_index.saturating_sub(1);
-            }
-            KeyCode::Enter | KeyCode::Char('o') => {
-                if let Some(item) = self.news_cache.get(self.selected_index) {
-                    if let Err(e) = open::that(&item.url) {
-                        eprintln!("Failed to open browser: {}", e);
-                    }
+    pub fn handle_action(&mut self, action: &Action) -> bool {
+        match action {
+            Action::Quit => return false,
+            Action::ArticleOpened(url) => {
+                if let Err(e) = open::that(url) {
+                    eprintln!("Failed to open browser: {}", e);
                 }
             }
             _ => {}
         }
-        true // Continue running
+        true
     }
 }

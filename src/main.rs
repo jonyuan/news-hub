@@ -1,4 +1,3 @@
-use crossterm::event::Event;
 use crossterm::{event, execute, terminal};
 use dotenvy::dotenv;
 use ratatui::{backend::CrosstermBackend, Terminal};
@@ -10,7 +9,7 @@ use tokio::time::Duration;
 use news_hub::adaptors::{build_adaptors, fetch_all};
 use news_hub::app::{App, AppMessage, AppState};
 use news_hub::db::sqlite::NewsDB;
-use news_hub::ui::draw_ui;
+use news_hub::ui::{draw_ui, Action};
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -38,7 +37,7 @@ async fn main() -> io::Result<()> {
 
     loop {
         // Draw UI with current state
-        draw_ui(&mut terminal, &app.news_cache, app.app_state, app.selected_index)?;
+        draw_ui(&mut terminal, &app.news_list, app.app_state)?;
 
         // Check for background task messages (non-blocking)
         if let Ok(msg) = rx.try_recv() {
@@ -47,31 +46,33 @@ async fn main() -> io::Result<()> {
 
         // Poll for keyboard input
         if event::poll(Duration::from_millis(200))? {
-            if let Event::Key(k) = event::read()? {
-                // Handle refresh in background
-                if k.code == crossterm::event::KeyCode::Char('r') {
-                    if matches!(app.app_state, AppState::Idle) {
-                        app.app_state = AppState::Loading;
-                        let tx = tx.clone();
-                        let adaptors = Arc::clone(&adaptors);
+            let event = event::read()?;
 
-                        tokio::spawn(async move {
-                            let items = fetch_all(&adaptors).await;
-                            let msg = if items.is_empty() {
-                                AppMessage::RefreshFailed("No items fetched".to_string())
-                            } else {
-                                AppMessage::RefreshComplete(items)
-                            };
-                            let _ = tx.send(msg);
-                        });
-                    }
-                    continue;
-                }
+            // Handle events through component system
+            let action = app.handle_event(&event);
 
-                // Delegate other key handling to app
-                if !app.handle_key(k.code) {
-                    break; // Quit signal
+            // Handle refresh action in background
+            if matches!(action, Action::RefreshRequested) {
+                if matches!(app.app_state, AppState::Idle) {
+                    app.app_state = AppState::Loading;
+                    let tx = tx.clone();
+                    let adaptors = Arc::clone(&adaptors);
+
+                    tokio::spawn(async move {
+                        let items = fetch_all(&adaptors).await;
+                        let msg = if items.is_empty() {
+                            AppMessage::RefreshFailed("No items fetched".to_string())
+                        } else {
+                            AppMessage::RefreshComplete(items)
+                        };
+                        let _ = tx.send(msg);
+                    });
                 }
+            }
+
+            // Handle other actions (like quit, open URL)
+            if !app.handle_action(&action) {
+                break; // Quit signal
             }
         }
     }

@@ -4,7 +4,7 @@ use chrono::{TimeZone, Utc};
 use reqwest::Client;
 use serde::Deserialize;
 
-use crate::api::NewsItem;
+use crate::models::NewsItem;
 use super::NewsAdaptor;
 
 #[derive(Deserialize)]

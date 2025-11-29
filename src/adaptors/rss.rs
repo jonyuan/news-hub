@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use rss::Channel;
 use uuid::Uuid;
 
-use crate::api::NewsItem;
+use crate::models::NewsItem;
 use super::NewsAdaptor;
 
 // Hardcoded default RSS feeds (no API keys required)

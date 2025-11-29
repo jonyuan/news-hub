@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 
-use crate::api::NewsItem;
+use crate::models::NewsItem;
 
 mod benzinga;
 mod rss;
