@@ -2,7 +2,7 @@ pub mod component;
 pub mod components;
 
 pub use component::{Action, Component};
-pub use components::NewsListComponent;
+pub use components::{NewsListComponent, DetailPaneComponent};
 
 use crate::app::AppState;
 use ratatui::{
@@ -17,29 +17,33 @@ use std::io;
 pub fn draw_ui(
     term: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
     news_list: &NewsListComponent,
+    detail_pane: &DetailPaneComponent,
     _app_state: AppState,
 ) -> io::Result<()> {
     term.draw(|f| {
-        let chunks = Layout::default()
+        // Main vertical split: content area + footer
+        let main_chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Min(3), Constraint::Length(3)].as_ref())
+            .constraints([Constraint::Min(5), Constraint::Length(3)].as_ref())
             .split(f.size());
 
-        // Render the news list component
-        news_list.render(f, chunks[0]);
+        // Content area horizontal split: news list (60%) + detail pane (40%)
+        let content_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(60), Constraint::Percentage(40)].as_ref())
+            .split(main_chunks[0]);
 
-        // Footer with summary
-        let summary = if let Some(item) = news_list.selected_item() {
-            format!("Summary: {}", item.summary)
-        } else {
-            String::from("No items available")
-        };
+        // Render components
+        news_list.render(f, content_chunks[0]);
+        detail_pane.render(f, content_chunks[1]);
 
-        let footer = Paragraph::new(summary)
-            .block(Block::default().title("Article Summary").borders(Borders::ALL))
+        // Footer with help text
+        let footer_text = "Tab: Switch Focus | ↑/↓: Navigate/Scroll | Enter/o: Open Article | r: Refresh | q: Quit";
+        let footer = Paragraph::new(footer_text)
+            .block(Block::default().title("Controls").borders(Borders::ALL))
             .style(Style::default().fg(Color::Gray));
 
-        f.render_widget(footer, chunks[1]);
+        f.render_widget(footer, main_chunks[1]);
     })?;
     Ok(())
 }
