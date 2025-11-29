@@ -8,11 +8,16 @@ We currently follow a "component-lite" [architecture](https://ratatui.rs/concept
 
 # Todo List
 
+## 11.29.25
+
+- deduplicate feed
+- search bar focus should not override feed commands
+
 ## 11.26.25
 
-- restructure to component-like
+- restructure to component-like ✅
 - scrolling UI feature
-- read pane
+- read pane ✅
 - configure a more useful status bar
 
 ## 11.24.25

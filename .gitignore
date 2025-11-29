@@ -29,5 +29,8 @@ target
 .env
 *.key
 
+# Local configuration
+config.toml
+
 # sqlite database cache
 data/
