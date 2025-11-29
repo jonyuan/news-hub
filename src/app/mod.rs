@@ -2,11 +2,12 @@ use crossterm::event::{Event, KeyCode, KeyEvent};
 
 use crate::models::NewsItem;
 use crate::db::sqlite::NewsDB;
-use crate::ui::{Action, Component, NewsListComponent, DetailPaneComponent};
+use crate::ui::{Action, Component, NewsListComponent, DetailPaneComponent, SearchBarComponent};
 
 /// Identifies which component currently has focus
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ComponentId {
+    SearchBar,
     NewsList,
     DetailPane,
 }
@@ -27,6 +28,7 @@ pub enum AppState {
 
 /// Main application state
 pub struct App {
+    pub search_bar: SearchBarComponent,
     pub news_list: NewsListComponent,
     pub detail_pane: DetailPaneComponent,
     pub app_state: AppState,
@@ -35,6 +37,9 @@ pub struct App {
 
 impl App {
     pub fn new(initial_news: Vec<NewsItem>) -> Self {
+        let mut search_bar = SearchBarComponent::new();
+        search_bar.set_focus(false);
+
         let mut news_list = NewsListComponent::new(initial_news);
         news_list.set_focus(true); // NewsList starts with focus
 
@@ -47,6 +52,7 @@ impl App {
         }
 
         Self {
+            search_bar,
             news_list,
             detail_pane,
             app_state: AppState::Idle,
@@ -91,11 +97,13 @@ impl App {
 
         // Route event to focused component
         let action = match self.focused_component {
+            ComponentId::SearchBar => self.search_bar.handle_event(event),
             ComponentId::NewsList => self.news_list.handle_event(event),
             ComponentId::DetailPane => self.detail_pane.handle_event(event),
         };
 
         // Update all components based on the action
+        self.search_bar.update(&action);
         self.news_list.update(&action);
         self.detail_pane.update(&action);
 
@@ -112,6 +120,11 @@ impl App {
     /// Cycle focus between components (Tab key)
     fn cycle_focus(&mut self) {
         self.focused_component = match self.focused_component {
+            ComponentId::SearchBar => {
+                self.search_bar.set_focus(false);
+                self.news_list.set_focus(true);
+                ComponentId::NewsList
+            }
             ComponentId::NewsList => {
                 self.news_list.set_focus(false);
                 self.detail_pane.set_focus(true);
@@ -119,8 +132,8 @@ impl App {
             }
             ComponentId::DetailPane => {
                 self.detail_pane.set_focus(false);
-                self.news_list.set_focus(true);
-                ComponentId::NewsList
+                self.search_bar.set_focus(true);
+                ComponentId::SearchBar
             }
         };
     }

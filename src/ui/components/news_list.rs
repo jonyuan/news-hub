@@ -10,27 +10,55 @@ use ratatui::{
 };
 
 pub struct NewsListComponent {
-    news: Vec<NewsItem>,
+    all_news: Vec<NewsItem>,      // Unfiltered news
+    filtered_news: Vec<NewsItem>, // Filtered based on search query
+    search_query: String,
     selected_index: usize,
     focused: bool,
 }
 
 impl NewsListComponent {
     pub fn new(news: Vec<NewsItem>) -> Self {
+        let filtered_news = news.clone();
         Self {
-            news,
+            all_news: news,
+            filtered_news,
+            search_query: String::new(),
             selected_index: 0,
             focused: true,
         }
     }
 
     pub fn set_news(&mut self, news: Vec<NewsItem>) {
-        self.news = news;
+        self.all_news = news;
+        self.apply_filter();
         self.selected_index = 0;
     }
 
     pub fn selected_item(&self) -> Option<&NewsItem> {
-        self.news.get(self.selected_index)
+        self.filtered_news.get(self.selected_index)
+    }
+
+    fn apply_filter(&mut self) {
+        if self.search_query.is_empty() {
+            self.filtered_news = self.all_news.clone();
+        } else {
+            let query_lower = self.search_query.to_lowercase();
+            self.filtered_news = self.all_news
+                .iter()
+                .filter(|item| {
+                    item.title.to_lowercase().contains(&query_lower) ||
+                    item.summary.to_lowercase().contains(&query_lower) ||
+                    item.source.to_lowercase().contains(&query_lower)
+                })
+                .cloned()
+                .collect();
+        }
+
+        // Reset selection if out of bounds
+        if self.selected_index >= self.filtered_news.len() {
+            self.selected_index = 0;
+        }
     }
 }
 
@@ -43,7 +71,7 @@ impl Component for NewsListComponent {
         if let Event::Key(KeyEvent { code, .. }) = event {
             match code {
                 KeyCode::Down => {
-                    if self.selected_index < self.news.len().saturating_sub(1) {
+                    if self.selected_index < self.filtered_news.len().saturating_sub(1) {
                         self.selected_index += 1;
                         return Action::SelectionChanged(self.selected_index);
                     }
@@ -75,19 +103,27 @@ impl Component for NewsListComponent {
     fn update(&mut self, action: &Action) {
         match action {
             Action::SelectionChanged(index) => {
-                if *index < self.news.len() {
+                if *index < self.filtered_news.len() {
                     self.selected_index = *index;
                 }
+            }
+            Action::SearchQueryChanged(query) => {
+                self.search_query = query.clone();
+                self.apply_filter();
             }
             _ => {}
         }
     }
 
     fn render(&self, f: &mut Frame, area: Rect) {
-        let title = "News Feed [Press 'r' to refresh, 'q' to quit, Enter/o to open]";
+        let title = if self.search_query.is_empty() {
+            format!("News Feed ({} articles)", self.filtered_news.len())
+        } else {
+            format!("News Feed ({}/{} filtered)", self.filtered_news.len(), self.all_news.len())
+        };
 
         let items: Vec<ListItem> = self
-            .news
+            .filtered_news
             .iter()
             .enumerate()
             .map(|(i, n)| {
@@ -114,7 +150,16 @@ impl Component for NewsListComponent {
             })
             .collect();
 
-        let list = List::new(items).block(Block::default().title(title).borders(Borders::ALL));
+        let list = List::new(items).block(
+            Block::default()
+                .title(title)
+                .borders(Borders::ALL)
+                .border_style(if self.focused {
+                    Style::default().fg(Color::Yellow)
+                } else {
+                    Style::default()
+                }),
+        );
 
         f.render_widget(list, area);
     }

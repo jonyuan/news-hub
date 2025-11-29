@@ -37,7 +37,13 @@ async fn main() -> io::Result<()> {
 
     loop {
         // Draw UI with current state
-        draw_ui(&mut terminal, &app.news_list, &app.detail_pane, app.app_state)?;
+        draw_ui(
+            &mut terminal,
+            &app.search_bar,
+            &app.news_list,
+            &app.detail_pane,
+            app.app_state,
+        )?;
 
         // Check for background task messages (non-blocking)
         if let Ok(msg) = rx.try_recv() {
