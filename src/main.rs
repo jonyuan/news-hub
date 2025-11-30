@@ -78,7 +78,7 @@ async fn main() -> io::Result<()> {
 
             // Handle other actions (like quit, open URL)
             if !app.handle_action(&action) {
-                break; // Quit signal
+                break;
             }
         }
     }

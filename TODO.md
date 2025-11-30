@@ -2,7 +2,7 @@
 
 ## Architecture
 
-We currently follow a "component-lite" [architecture](https://ratatui.rs/concepts/application-patterns/component-architecture/). Looking to move towards an event-bus architecture to self-contain components vis a vis an [Elm](https://ratatui.rs/concepts/application-patterns/the-elm-architecture/)/[Flux](https://ratatui.rs/concepts/application-patterns/flux-architecture/) pattern
+We currently follow a "component-lite" [architecture](https://ratatui.rs/concepts/application-patterns/component-architecture/).
 
 # Issues
 
@@ -11,7 +11,7 @@ We currently follow a "component-lite" [architecture](https://ratatui.rs/concept
 ## 11.29.25
 
 - deduplicate feed
-- search bar focus should not override feed commands
+- search bar focus should not override feed commands ✅
 
 ## 11.26.25
 

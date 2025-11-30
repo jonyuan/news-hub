@@ -49,8 +49,11 @@ pub fn draw_ui(
         detail_pane.render(f, content_chunks[1]);
 
         // Footer with help text
-        let footer_text =
-            "Tab: Switch Focus | ↑/↓: Navigate/Scroll | Enter/o: Open | r: Refresh | q: Quit";
+        let footer_text = if search_bar.is_focused() {
+            "Search Mode: Type to filter | ↑/↓: Navigate | Enter: Open | Esc: Exit Search | Tab: Switch Pane"
+        } else {
+            "/: Search | Tab: Switch Focus | ↑/↓: Navigate | Enter/o: Open | r: Refresh | q: Quit"
+        };
         let footer = Paragraph::new(footer_text)
             .block(Block::default().title("Controls").borders(Borders::ALL))
             .style(Style::default().fg(Color::Gray));

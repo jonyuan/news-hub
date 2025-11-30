@@ -1,8 +1,8 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
 
-use crate::models::NewsItem;
 use crate::db::sqlite::NewsDB;
-use crate::ui::{Action, Component, NewsListComponent, DetailPaneComponent, SearchBarComponent};
+use crate::models::NewsItem;
+use crate::ui::{Action, Component, DetailPaneComponent, NewsListComponent, SearchBarComponent};
 
 /// Identifies which component currently has focus
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,21 +89,49 @@ impl App {
     /// Handle keyboard/mouse events
     /// Returns the Action emitted by components
     pub fn handle_event(&mut self, event: &Event) -> Action {
+        // Handle '/' to enter search mode
+        if let Event::Key(KeyEvent {
+            code: KeyCode::Char('/'),
+            modifiers,
+            ..
+        }) = event
+        {
+            if modifiers.is_empty() && !self.search_bar.is_focused() {
+                self.search_bar.set_focus(true);
+                return Action::None;
+            }
+        }
+
+        // check if we are in search mode
+        if self.search_bar.is_focused() {
+            let action = self.search_bar.handle_event(event);
+
+            // If SearchBar handled it, broadcast and return
+            if !matches!(action, Action::None) {
+                self.news_list.update(&action);
+                self.detail_pane.update(&action);
+                return action;
+            }
+            // SearchBar returned Action::None, fall through to focused component
+        }
+
         // Handle Tab key for focus switching
-        if let Event::Key(KeyEvent { code: KeyCode::Tab, .. }) = event {
+        if let Event::Key(KeyEvent {
+            code: KeyCode::Tab, ..
+        }) = event
+        {
             self.cycle_focus();
             return Action::None;
         }
 
-        // Route event to focused component
+        // Route to focused component (NewsList or DetailPane)
         let action = match self.focused_component {
-            ComponentId::SearchBar => self.search_bar.handle_event(event),
             ComponentId::NewsList => self.news_list.handle_event(event),
             ComponentId::DetailPane => self.detail_pane.handle_event(event),
+            ComponentId::SearchBar => Action::None,
         };
 
-        // Update all components based on the action
-        self.search_bar.update(&action);
+        // Broadcast action to all components
         self.news_list.update(&action);
         self.detail_pane.update(&action);
 
@@ -117,14 +145,9 @@ impl App {
         action
     }
 
-    /// Cycle focus between components (Tab key)
+    /// Cycle focus between NewsList and DetailPane only (Tab key)
     fn cycle_focus(&mut self) {
         self.focused_component = match self.focused_component {
-            ComponentId::SearchBar => {
-                self.search_bar.set_focus(false);
-                self.news_list.set_focus(true);
-                ComponentId::NewsList
-            }
             ComponentId::NewsList => {
                 self.news_list.set_focus(false);
                 self.detail_pane.set_focus(true);
@@ -132,8 +155,14 @@ impl App {
             }
             ComponentId::DetailPane => {
                 self.detail_pane.set_focus(false);
-                self.search_bar.set_focus(true);
-                ComponentId::SearchBar
+                self.news_list.set_focus(true);
+                ComponentId::NewsList
+            }
+            ComponentId::SearchBar => {
+                // Should not reach here, but default to NewsList
+                self.search_bar.set_focus(false);
+                self.news_list.set_focus(true);
+                ComponentId::NewsList
             }
         };
     }

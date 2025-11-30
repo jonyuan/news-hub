@@ -77,11 +77,7 @@ impl Component for DetailPaneComponent {
     }
 
     fn render(&self, f: &mut Frame, area: Rect) {
-        let title = if self.focused {
-            "Article Detail [Focused - j/k or ↑/↓ to scroll, o/Enter to open]"
-        } else {
-            "Article Detail"
-        };
+        let title = "Article Detail";
 
         let content = if let Some(article) = &self.article {
             format!(

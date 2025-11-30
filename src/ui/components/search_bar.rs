@@ -25,6 +25,10 @@ impl SearchBarComponent {
     pub fn query(&self) -> &str {
         &self.query
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.query.is_empty()
+    }
 }
 
 impl Component for SearchBarComponent {
@@ -72,9 +76,10 @@ impl Component for SearchBarComponent {
                     self.cursor_pos = self.query.len();
                 }
                 KeyCode::Esc => {
-                    // Clear search
+                    // Clear search AND exit search mode
                     self.query.clear();
                     self.cursor_pos = 0;
+                    self.focused = false;
                     return Action::SearchQueryChanged(String::new());
                 }
                 // Ctrl+W: Delete word backwards (common in CLI)
@@ -88,6 +93,11 @@ impl Component for SearchBarComponent {
                         return Action::SearchQueryChanged(self.query.clone());
                     }
                 }
+                // everything else passes through to focused component
+                // KeyCode::Up | KeyCode::Down | KeyCode::Enter | KeyCode::Tab
+                // | KeyCode::PageUp | KeyCode::PageDown => {
+                //     return Action::None;
+                // }
                 _ => {}
             }
         }
@@ -101,16 +111,16 @@ impl Component for SearchBarComponent {
 
     fn render(&self, f: &mut Frame, area: Rect) {
         let title = if self.focused {
-            "Search [Focused - Type to filter, Esc to clear, Ctrl+W to delete word]"
+            "Search [Esc to exit | Ctrl+W: delete word]"
         } else {
-            "Search"
+            ""
         };
 
         let display_text = if self.query.is_empty() {
             if self.focused {
                 "Type to search articles..."
             } else {
-                "Press Tab to focus and search"
+                "Press / to focus and search"
             }
         } else {
             &self.query
