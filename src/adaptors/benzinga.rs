@@ -58,6 +58,8 @@ impl NewsAdaptor for BenzingaAdaptor {
             .await
             .context("Failed to parse Benzinga response")?;
 
+        let now = Utc::now();
+
         let items = resp.articles
             .into_iter()
             .map(|n| NewsItem {
@@ -68,7 +70,8 @@ impl NewsAdaptor for BenzingaAdaptor {
                 summary: n.description.unwrap_or_default(),
                 published: Utc.timestamp_opt(n.updated, 0)
                     .single()
-                    .unwrap_or_else(|| Utc::now()),
+                    .unwrap_or_else(|| now),
+                updated_at: now,
             })
             .collect();
 

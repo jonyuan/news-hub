@@ -9,4 +9,5 @@ pub struct NewsItem {
     pub url: String,
     pub summary: String,
     pub published: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }

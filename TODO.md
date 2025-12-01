@@ -8,9 +8,14 @@ We currently follow a "component-lite" [architecture](https://ratatui.rs/concept
 
 # Todo List
 
+## 11.30.25
+
+- singleton search not loading details pane
+- print to console interference
+
 ## 11.29.25
 
-- deduplicate feed
+- deduplicate feed ✅
 - search bar focus should not override feed commands ✅
 
 ## 11.26.25
