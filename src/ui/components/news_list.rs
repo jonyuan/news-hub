@@ -44,12 +44,13 @@ impl NewsListComponent {
             self.filtered_news = self.all_news.clone();
         } else {
             let query_lower = self.search_query.to_lowercase();
-            self.filtered_news = self.all_news
+            self.filtered_news = self
+                .all_news
                 .iter()
                 .filter(|item| {
-                    item.title.to_lowercase().contains(&query_lower) ||
-                    item.summary.to_lowercase().contains(&query_lower) ||
-                    item.source.to_lowercase().contains(&query_lower)
+                    item.title.to_lowercase().contains(&query_lower)
+                        || item.summary.to_lowercase().contains(&query_lower)
+                        || item.source.to_lowercase().contains(&query_lower)
                 })
                 .cloned()
                 .collect();
@@ -119,7 +120,11 @@ impl Component for NewsListComponent {
         let title = if self.search_query.is_empty() {
             format!("News Feed ({} articles)", self.filtered_news.len())
         } else {
-            format!("News Feed ({}/{} filtered)", self.filtered_news.len(), self.all_news.len())
+            format!(
+                "News Feed ({}/{} filtered)",
+                self.filtered_news.len(),
+                self.all_news.len()
+            )
         };
 
         let items: Vec<ListItem> = self
@@ -127,6 +132,7 @@ impl Component for NewsListComponent {
             .iter()
             .enumerate()
             .map(|(i, n)| {
+                // CR jyuan: updated_at is not a great fallback for published date
                 let time_diff = Local::now().signed_duration_since(n.published);
                 let time_str = if time_diff.num_hours() < 1 {
                     format!("{}m ago", time_diff.num_minutes())

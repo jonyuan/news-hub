@@ -8,10 +8,16 @@ We currently follow a "component-lite" [architecture](https://ratatui.rs/concept
 
 # Todo List
 
+## 12.1.25
+
+- (low prio) group rss feeds, like Investing.com, in a more cohesive way, and migrate from hardcoded feeds
+- handle any dropped rss items (e.g. unparsable date)
+
 ## 11.30.25
 
 - singleton search not loading details pane
 - print to console interference
+- Long RSS GUID (permalink) overflow ✅
 
 ## 11.29.25
 

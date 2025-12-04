@@ -27,7 +27,7 @@ impl NewsDB {
                 title TEXT NOT NULL,
                 url TEXT NOT NULL,
                 summary TEXT NOT NULL,
-                published TEXT NOT NULL,
+                published TEXT,
                 updated_at TEXT NOT NULL,
                 UNIQUE(source, url)
             );
