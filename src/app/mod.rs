@@ -85,7 +85,18 @@ impl App {
                 let success_count = diagnostics.iter().filter(|d| d.success).count();
                 let fail_count = diagnostics.iter().filter(|d| !d.success).count();
 
-                let status_msg = if fail_count == 0 && db_errors.is_empty() {
+                // Collect per-source warnings
+                let warnings: Vec<String> = diagnostics
+                    .iter()
+                    .filter(|d| d.success && !d.warnings.is_empty())
+                    .flat_map(|d| {
+                        d.warnings.iter().map(|w| format!("{}: {}", d.source, w))
+                    })
+                    .collect();
+
+                let has_warnings = !warnings.is_empty();
+
+                let status_msg = if fail_count == 0 && db_errors.is_empty() && !has_warnings {
                     StatusMessage::success(format!(
                         "Fetched {} items from {} sources",
                         items.len(),
@@ -102,6 +113,9 @@ impl App {
                     }
                     if !db_errors.is_empty() {
                         msg_parts.push(format!("{} DB errors", db_errors.len()));
+                    }
+                    if has_warnings {
+                        msg_parts.extend(warnings);
                     }
                     StatusMessage::warning(msg_parts.join("; "))
                 } else {
@@ -206,6 +220,15 @@ impl App {
         {
             self.cycle_focus();
             return Action::None;
+        }
+
+        // Route Up/Down keys to status bar when history is shown
+        if self.status_bar.is_showing_history() {
+            if let Event::Key(KeyEvent { code, .. }) = event {
+                if matches!(code, KeyCode::Up | KeyCode::Down) {
+                    return self.status_bar.handle_event(event);
+                }
+            }
         }
 
         // Route to focused component (NewsList or DetailPane)

@@ -24,13 +24,14 @@ pub fn draw_ui(
 ) -> io::Result<()> {
     term.draw(|f| {
         // Main vertical split: search bar + content area + status bar
+        let status_bar_height = status_bar.get_height();
         let main_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints(
                 [
-                    Constraint::Length(3), // Search bar
-                    Constraint::Min(5),    // Content area
-                    Constraint::Length(3), // Status bar
+                    Constraint::Length(3),                    // Search bar
+                    Constraint::Min(5),                       // Content area
+                    Constraint::Length(status_bar_height),    // Status bar (dynamic)
                 ]
                 .as_ref(),
             )

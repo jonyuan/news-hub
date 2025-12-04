@@ -1,21 +1,26 @@
 # General Notes
 
-## Architecture
-
-We currently follow a "component-lite" [architecture](https://ratatui.rs/concepts/application-patterns/component-architecture/).
-
 # Issues
 
 - Some RSS feeds are being dropped due to unparsable fields.
+  - Investing.com Stocks
 
 # Todo List
 
+## 12.4.25
+
+- fast and more natural scroll UX
+- status bar message should wrap
+- search bar / message history UX
+
 ## 12.3.25
 
-- dynamic status message history component sizing
+- dynamic status message history component sizing ✅
 - scrollable features and scroll toggle between normal/message history
 - move the status bar logic from the app into its handle_event() method
 - fix unable to quit in detail_pane focus
+- use dequeue for message history ✅
+- display warnings directly as a status message ✅
 
 ## 12.1.25
 
@@ -36,7 +41,7 @@ We currently follow a "component-lite" [architecture](https://ratatui.rs/concept
 ## 11.26.25
 
 - restructure to component-like ✅
-- scrolling UI feature
+- scrolling UI feature ✅
 - read pane ✅
 - configure a more useful status bar ✅
 

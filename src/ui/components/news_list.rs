@@ -61,6 +61,24 @@ impl NewsListComponent {
             self.selected_index = 0;
         }
     }
+
+    /// Calculate the scroll offset to keep the selected item visible
+    /// Uses a centered approach: keeps selected item in the middle when possible
+    fn calculate_scroll_offset(&self, visible_height: usize) -> usize {
+        if self.filtered_news.len() <= visible_height {
+            return 0; // No scrolling needed
+        }
+
+        let max_scroll = self.filtered_news.len().saturating_sub(visible_height);
+
+        if self.selected_index < visible_height / 2 {
+            0 // Near top, don't scroll
+        } else if self.selected_index + visible_height / 2 >= self.filtered_news.len() {
+            max_scroll // Near bottom, scroll to end
+        } else {
+            self.selected_index - visible_height / 2 // Center selected item
+        }
+    }
 }
 
 impl Component for NewsListComponent {
@@ -127,10 +145,16 @@ impl Component for NewsListComponent {
             )
         };
 
+        // Calculate visible height (minus 2 for borders)
+        let visible_height = area.height.saturating_sub(2) as usize;
+        let scroll_offset = self.calculate_scroll_offset(visible_height);
+
         let items: Vec<ListItem> = self
             .filtered_news
             .iter()
             .enumerate()
+            .skip(scroll_offset)
+            .take(visible_height)
             .map(|(i, n)| {
                 // CR jyuan: updated_at is not a great fallback for published date
                 let time_diff = Local::now().signed_duration_since(n.published);

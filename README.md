@@ -20,3 +20,7 @@ vim .env
 # 4. Run
 cargo run
 ```
+
+## Dev Notes
+
+We currently follow a "component-lite" [architecture](https://ratatui.rs/concepts/application-patterns/component-architecture/).

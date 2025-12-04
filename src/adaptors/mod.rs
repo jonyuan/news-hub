@@ -32,7 +32,8 @@ pub trait NewsAdaptor: Send + Sync {
     fn name(&self) -> &str;
 
     /// Fetch news items from this source
-    async fn fetch(&self) -> Result<Vec<NewsItem>>;
+    /// Returns (items, warnings) where warnings are non-critical messages for the user
+    async fn fetch(&self) -> Result<(Vec<NewsItem>, Vec<String>)>;
 
     /// Check if adaptor is properly configured (default: true)
     fn is_enabled(&self) -> bool {
@@ -51,12 +52,12 @@ pub async fn fetch_all(adaptors: &[Box<dyn NewsAdaptor>]) -> FetchResult {
         }
 
         match adaptor.fetch().await {
-            Ok(items) => {
+            Ok((items, warnings)) => {
                 diagnostics.push(FetchDiagnostic {
                     source: adaptor.name().to_string(),
                     success: true,
                     message: format!("Fetched {} items", items.len()),
-                    warnings: Vec::new(),
+                    warnings,
                 });
                 all_items.extend(items);
             }

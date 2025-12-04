@@ -105,7 +105,7 @@ impl NewsAdaptor for RssAdaptor {
         &self.source_name
     }
 
-    async fn fetch(&self) -> Result<Vec<NewsItem>> {
+    async fn fetch(&self) -> Result<(Vec<NewsItem>, Vec<String>)> {
         let content = reqwest::get(&self.url)
             .await
             .context("Failed to fetch RSS feed")?
@@ -145,11 +145,15 @@ impl NewsAdaptor for RssAdaptor {
                 })
             })
             .collect();
-        // count how many items we dropped
+
+        // Count how many items we dropped and build warnings
+        let mut warnings = Vec::new();
         let dropped_count = channel.items().len() - items.len();
         if dropped_count > 0 {
             warn!("Dropped {} unparsable RSS items.", dropped_count);
+            warnings.push(format!("Dropped {} unparsable items", dropped_count));
         }
-        Ok(items)
+
+        Ok((items, warnings))
     }
 }

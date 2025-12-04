@@ -45,7 +45,7 @@ impl NewsAdaptor for BenzingaAdaptor {
         !self.api_key.is_empty()
     }
 
-    async fn fetch(&self) -> Result<Vec<NewsItem>> {
+    async fn fetch(&self) -> Result<(Vec<NewsItem>, Vec<String>)> {
         let url = "https://api.benzinga.com/api/v2/news";
 
         let resp: BenzResp = self.client
@@ -75,6 +75,6 @@ impl NewsAdaptor for BenzingaAdaptor {
             })
             .collect();
 
-        Ok(items)
+        Ok((items, Vec::new()))
     }
 }

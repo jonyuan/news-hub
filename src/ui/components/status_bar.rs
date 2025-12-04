@@ -1,6 +1,6 @@
 use crate::ui::component::{Action, Component};
 use crate::ui::status_message::{MessageLevel, StatusMessage};
-use crossterm::event::Event;
+use crossterm::event::{Event, KeyCode, KeyEvent};
 use ratatui::{
     layout::Rect,
     style::{Color, Style},
@@ -65,11 +65,10 @@ impl StatusBarComponent {
         }
     }
 
-    // TODO: uncomment this when we use it
     /// Reset scroll when closing history
-    // fn reset_scroll(&mut self) {
-    //     self.history_scroll_offset = 0;
-    // }
+    fn reset_scroll(&mut self) {
+        self.history_scroll_offset = 0;
+    }
 
     /// Get the expanded height when history is shown
     pub fn get_height(&self) -> u16 {
@@ -145,11 +144,14 @@ impl StatusBarComponent {
     fn render_history(&self, f: &mut Frame, area: Rect) {
         // Calculate how many lines we can fit (minus 2 for borders)
         let available_lines = area.height.saturating_sub(2) as usize;
+        let total_messages = self.message_history.len();
 
+        // Apply scroll offset
         let history_text: Vec<Line> = self
             .message_history
             .iter()
             .rev()
+            .skip(self.history_scroll_offset)
             .take(available_lines)
             .map(|msg| {
                 let time_str = msg.timestamp.format("%H:%M:%S");
@@ -170,9 +172,27 @@ impl StatusBarComponent {
             })
             .collect();
 
+        // Build title with scroll indicator
+        let can_scroll_up = self.history_scroll_offset > 0;
+        let can_scroll_down = self.history_scroll_offset + available_lines < total_messages;
+
+        let title = if can_scroll_up || can_scroll_down {
+            let up_arrow = if can_scroll_up { "↑" } else { " " };
+            let down_arrow = if can_scroll_down { "↓" } else { " " };
+            format!(
+                "Message History {} {}/{} {} (↑/↓: Scroll, h/Esc: Close)",
+                up_arrow,
+                self.history_scroll_offset + 1,
+                total_messages,
+                down_arrow
+            )
+        } else {
+            "Message History (h or Esc to close)".to_string()
+        };
+
         let paragraph = Paragraph::new(history_text).block(
             Block::default()
-                .title("Message History (h or Esc to close)")
+                .title(title)
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         );
@@ -182,10 +202,27 @@ impl StatusBarComponent {
 }
 
 impl Component for StatusBarComponent {
-    fn handle_event(&mut self, _event: &Event) -> Action {
-        // StatusBar doesn't handle events directly
-        // 'h' for history and 'Esc' for dismiss are handled globally in App
-        Action::None
+    fn handle_event(&mut self, event: &Event) -> Action {
+        // Only handle events when history is showing
+        if !self.show_history {
+            return Action::None;
+        }
+
+        if let Event::Key(KeyEvent { code, .. }) = event {
+            match code {
+                KeyCode::Up => {
+                    self.scroll_history_up();
+                    Action::None
+                }
+                KeyCode::Down => {
+                    self.scroll_history_down();
+                    Action::None
+                }
+                _ => Action::None,
+            }
+        } else {
+            Action::None
+        }
     }
 
     fn update(&mut self, action: &Action) {
@@ -215,5 +252,8 @@ impl Component for StatusBarComponent {
     fn set_focus(&mut self, focused: bool) {
         // StatusBar "focus" means it is showing history
         self.show_history = focused;
+        if !focused {
+            self.reset_scroll();
+        }
     }
 }
