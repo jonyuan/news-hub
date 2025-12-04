@@ -17,7 +17,6 @@ pub enum Action {
     // Status bar actions
     StatusMessage(StatusMessage),
     DismissStatus,
-    ShowStatusHistory,
 }
 
 /// Core trait that all UI components must implement

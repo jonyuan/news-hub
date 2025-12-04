@@ -4,11 +4,11 @@ use std::time::Duration;
 /// Severity level determines styling and persistence behavior
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MessageLevel {
-    Info,     // Gray, auto-dismiss after 5s
-    Success,  // Green, auto-dismiss after 3s
-    Warning,  // Yellow, auto-dismiss after 5s
-    Error,    // Red, persist until dismissed
-    Loading,  // Cyan with spinner, no auto-dismiss
+    Info,
+    Success,
+    Warning,
+    Error,
+    Loading,
 }
 
 /// A status message to display in the status bar

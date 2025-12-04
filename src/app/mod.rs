@@ -3,7 +3,10 @@ use crossterm::event::{Event, KeyCode, KeyEvent};
 use crate::adaptors::FetchDiagnostic;
 use crate::db::sqlite::NewsDB;
 use crate::models::NewsItem;
-use crate::ui::{Action, Component, DetailPaneComponent, NewsListComponent, SearchBarComponent, StatusBarComponent, StatusMessage};
+use crate::ui::{
+    Action, Component, DetailPaneComponent, NewsListComponent, SearchBarComponent,
+    StatusBarComponent, StatusMessage,
+};
 
 /// Identifies which component currently has focus
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,13 +86,17 @@ impl App {
                 let fail_count = diagnostics.iter().filter(|d| !d.success).count();
 
                 let status_msg = if fail_count == 0 && db_errors.is_empty() {
-                    StatusMessage::success(
-                        format!("Fetched {} items from {} sources", items.len(), success_count)
-                    )
+                    StatusMessage::success(format!(
+                        "Fetched {} items from {} sources",
+                        items.len(),
+                        success_count
+                    ))
                 } else if success_count > 0 {
-                    let mut msg_parts = vec![
-                        format!("Fetched {} items from {} sources", items.len(), success_count)
-                    ];
+                    let mut msg_parts = vec![format!(
+                        "Fetched {} items from {} sources",
+                        items.len(),
+                        success_count
+                    )];
                     if fail_count > 0 {
                         msg_parts.push(format!("{} sources failed", fail_count));
                     }
@@ -107,9 +114,8 @@ impl App {
                 let news = match db.load_all() {
                     Ok(news) => news,
                     Err(e) => {
-                        let msg = StatusMessage::error(
-                            format!("Failed to load from database: {}", e)
-                        );
+                        let msg =
+                            StatusMessage::error(format!("Failed to load from database: {}", e));
                         self.status_bar.set_message(msg);
                         Vec::new()
                     }
@@ -134,7 +140,7 @@ impl App {
     /// Handle keyboard/mouse events
     /// Returns the Action emitted by components
     pub fn handle_event(&mut self, event: &Event) -> Action {
-        // Handle 'h' for history viewer (global shortcut)
+        // TODO: move the status bar logic into its handle_event() method
         if let Event::Key(KeyEvent {
             code: KeyCode::Char('h'),
             modifiers,
@@ -142,22 +148,27 @@ impl App {
         }) = event
         {
             if modifiers.is_empty() && !self.search_bar.is_focused() {
-                let action = Action::ShowStatusHistory;
-                self.status_bar.update(&action);
-                return action;
+                self.status_bar.set_focus(!self.status_bar.is_focused());
+                return Action::None;
             }
         }
 
-        // Handle 'Esc' to dismiss status messages
         if let Event::Key(KeyEvent {
-            code: KeyCode::Esc,
-            ..
+            code: KeyCode::Esc, ..
         }) = event
         {
+            // Esc is a triple-overloaded event:
+            // leave the status bar, dismiss messsage, or leave search
+            // (handled by search_bar.handle_event())
+            if self.status_bar.is_focused() {
+                self.status_bar.set_focus(false);
+                return Action::None;
+            }
             if !self.search_bar.is_focused() {
                 let action = Action::DismissStatus;
                 self.status_bar.update(&action);
-                // Don't return early - Esc also exits search mode
+
+                return Action::None;
             }
         }
 

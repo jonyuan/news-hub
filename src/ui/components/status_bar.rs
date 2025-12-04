@@ -8,13 +8,15 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
+use std::collections::VecDeque;
 
 const SPINNER_FRAMES: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
 pub struct StatusBarComponent {
     current_message: Option<StatusMessage>,
-    message_history: Vec<StatusMessage>,
+    message_history: VecDeque<StatusMessage>,
     show_history: bool,
+    history_scroll_offset: usize,
     spinner_frame: usize,
 }
 
@@ -22,8 +24,9 @@ impl StatusBarComponent {
     pub fn new() -> Self {
         Self {
             current_message: None,
-            message_history: Vec::new(),
+            message_history: VecDeque::new(),
             show_history: false,
+            history_scroll_offset: 0,
             spinner_frame: 0,
         }
     }
@@ -32,10 +35,10 @@ impl StatusBarComponent {
     pub fn set_message(&mut self, message: StatusMessage) {
         // Add previous message to history
         if let Some(old_msg) = self.current_message.take() {
-            self.message_history.push(old_msg);
+            self.message_history.push_back(old_msg);
             // Keep last 50 messages
             if self.message_history.len() > 50 {
-                self.message_history.remove(0);
+                self.message_history.pop_front();
             }
         }
         self.current_message = Some(message);
@@ -43,8 +46,43 @@ impl StatusBarComponent {
 
     pub fn clear_message(&mut self) {
         if let Some(msg) = self.current_message.take() {
-            self.message_history.push(msg);
+            self.message_history.push_back(msg);
         }
+    }
+
+    /// Scroll history up (newer messages)
+    pub fn scroll_history_up(&mut self) {
+        if self.history_scroll_offset > 0 {
+            self.history_scroll_offset -= 1;
+        }
+    }
+
+    /// Scroll history down (older messages)
+    pub fn scroll_history_down(&mut self) {
+        let max_scroll = self.message_history.len().saturating_sub(15);
+        if self.history_scroll_offset < max_scroll {
+            self.history_scroll_offset += 1;
+        }
+    }
+
+    // TODO: uncomment this when we use it
+    /// Reset scroll when closing history
+    // fn reset_scroll(&mut self) {
+    //     self.history_scroll_offset = 0;
+    // }
+
+    /// Get the expanded height when history is shown
+    pub fn get_height(&self) -> u16 {
+        if self.show_history {
+            15 // Expanded height
+        } else {
+            3 // Normal height
+        }
+    }
+
+    /// deprecated: use is_focused() instead
+    pub fn is_showing_history(&self) -> bool {
+        self.is_focused()
     }
 
     pub fn tick_spinner(&mut self) {
@@ -93,7 +131,7 @@ impl StatusBarComponent {
             (display_text, Style::default().fg(color))
         } else {
             // Show help text when no status message
-            let help_text = "/: Search | Tab: Switch | ↑/↓: Nav | Enter/o: Open | r: Refresh | Esc: Dismiss | h: History | q: Quit";
+            let help_text = "/: Search | Tab: Switch | ↑/↓: Nav | Enter/o: Open | r: Refresh | h: Status History | q: Quit";
             (help_text.to_string(), Style::default().fg(Color::Gray))
         };
 
@@ -134,7 +172,7 @@ impl StatusBarComponent {
 
         let paragraph = Paragraph::new(history_text).block(
             Block::default()
-                .title("Message History (h to close)")
+                .title("Message History (h or Esc to close)")
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow)),
         );
@@ -158,9 +196,6 @@ impl Component for StatusBarComponent {
             Action::DismissStatus => {
                 self.clear_message();
             }
-            Action::ShowStatusHistory => {
-                self.show_history = !self.show_history;
-            }
             _ => {}
         }
     }
@@ -174,10 +209,11 @@ impl Component for StatusBarComponent {
     }
 
     fn is_focused(&self) -> bool {
-        false
+        self.show_history
     }
 
-    fn set_focus(&mut self, _focused: bool) {
-        // StatusBar never takes focus
+    fn set_focus(&mut self, focused: bool) {
+        // StatusBar "focus" means it is showing history
+        self.show_history = focused;
     }
 }
