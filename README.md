@@ -13,7 +13,8 @@ cd news-hub
 cp .env.example .env
 cp config.toml.example config.toml
 
-# 3. Edit .env with your API keys
+# 3. Edit .env with your API keys. You can skip this step for a
+# barebones, out of the box setup
 vim .env
 
 # 4. Run

@@ -69,19 +69,13 @@ impl NewsDB {
         Ok(())
     }
 
-    pub fn load_all(&self) -> Vec<NewsItem> {
-        let mut stmt = match self.conn.prepare(
+    pub fn load_all(&self) -> Result<Vec<NewsItem>> {
+        let mut stmt = self.conn.prepare(
             "SELECT id, source, title, url, summary, published, updated_at FROM news
              ORDER BY published DESC LIMIT 500",
-        ) {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("Failed to prepare query: {}", e);
-                return Vec::new();
-            }
-        };
+        )?;
 
-        let rows = match stmt.query_map([], |row| {
+        let rows = stmt.query_map([], |row| {
             let published_str: String = row.get(5)?;
             let published = published_str.parse().unwrap_or_else(|_| Utc::now());
 
@@ -97,14 +91,8 @@ impl NewsDB {
                 published,
                 updated_at,
             })
-        }) {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("Failed to query news: {}", e);
-                return Vec::new();
-            }
-        };
+        })?;
 
-        rows.filter_map(|r| r.ok()).collect()
+        Ok(rows.filter_map(|r| r.ok()).collect())
     }
 }

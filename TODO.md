@@ -11,7 +11,7 @@ We currently follow a "component-lite" [architecture](https://ratatui.rs/concept
 ## 12.1.25
 
 - (low prio) group rss feeds, like Investing.com, in a more cohesive way, and migrate from hardcoded feeds
-- handle any dropped rss items (e.g. unparsable date)
+- handle any dropped rss items (e.g. unparsable date) ✅
 
 ## 11.30.25
 

@@ -34,3 +34,7 @@ config.toml
 
 # sqlite database cache
 data/
+
+# logs
+logs/
+*.log

@@ -9,6 +9,22 @@ mod rss;
 pub use benzinga::BenzingaAdaptor;
 pub use rss::{RssAdaptor, DEFAULT_RSS_FEEDS};
 
+/// Diagnostic information for a single fetch operation
+#[derive(Debug, Clone)]
+pub struct FetchDiagnostic {
+    pub source: String,
+    pub success: bool,
+    pub message: String,
+    pub warnings: Vec<String>,
+}
+
+/// Result of fetching from all adaptors, including diagnostics
+#[derive(Debug)]
+pub struct FetchResult {
+    pub items: Vec<NewsItem>,
+    pub diagnostics: Vec<FetchDiagnostic>,
+}
+
 /// Trait for news adaptors - requires Send + Sync for tokio::spawn (thread safety)
 #[async_trait]
 pub trait NewsAdaptor: Send + Sync {
@@ -25,8 +41,9 @@ pub trait NewsAdaptor: Send + Sync {
 }
 
 /// Fetch from all enabled adaptors
-pub async fn fetch_all(adaptors: &[Box<dyn NewsAdaptor>]) -> Vec<NewsItem> {
+pub async fn fetch_all(adaptors: &[Box<dyn NewsAdaptor>]) -> FetchResult {
     let mut all_items = Vec::new();
+    let mut diagnostics = Vec::new();
 
     for adaptor in adaptors {
         if !adaptor.is_enabled() {
@@ -35,16 +52,29 @@ pub async fn fetch_all(adaptors: &[Box<dyn NewsAdaptor>]) -> Vec<NewsItem> {
 
         match adaptor.fetch().await {
             Ok(items) => {
-                eprintln!("✓ Fetched {} items from {}", items.len(), adaptor.name());
+                diagnostics.push(FetchDiagnostic {
+                    source: adaptor.name().to_string(),
+                    success: true,
+                    message: format!("Fetched {} items", items.len()),
+                    warnings: Vec::new(),
+                });
                 all_items.extend(items);
             }
             Err(e) => {
-                eprintln!("✗ Failed to fetch from {}: {}", adaptor.name(), e);
+                diagnostics.push(FetchDiagnostic {
+                    source: adaptor.name().to_string(),
+                    success: false,
+                    message: format!("Failed: {}", e),
+                    warnings: Vec::new(),
+                });
             }
         }
     }
 
-    all_items
+    FetchResult {
+        items: all_items,
+        diagnostics,
+    }
 }
 
 /// Build adaptors dynamically based on available API keys

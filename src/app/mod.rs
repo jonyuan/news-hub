@@ -1,8 +1,9 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
 
+use crate::adaptors::FetchDiagnostic;
 use crate::db::sqlite::NewsDB;
 use crate::models::NewsItem;
-use crate::ui::{Action, Component, DetailPaneComponent, NewsListComponent, SearchBarComponent};
+use crate::ui::{Action, Component, DetailPaneComponent, NewsListComponent, SearchBarComponent, StatusBarComponent, StatusMessage};
 
 /// Identifies which component currently has focus
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,7 +16,10 @@ pub enum ComponentId {
 /// Messages sent from background tasks to main event loop
 #[derive(Debug)]
 pub enum AppMessage {
-    RefreshComplete(Vec<NewsItem>),
+    RefreshComplete {
+        items: Vec<NewsItem>,
+        diagnostics: Vec<FetchDiagnostic>,
+    },
     RefreshFailed(String),
 }
 
@@ -31,6 +35,7 @@ pub struct App {
     pub search_bar: SearchBarComponent,
     pub news_list: NewsListComponent,
     pub detail_pane: DetailPaneComponent,
+    pub status_bar: StatusBarComponent,
     pub app_state: AppState,
     pub focused_component: ComponentId,
 }
@@ -55,6 +60,7 @@ impl App {
             search_bar,
             news_list,
             detail_pane,
+            status_bar: StatusBarComponent::new(),
             app_state: AppState::Idle,
             focused_component: ComponentId::NewsList,
         }
@@ -63,13 +69,51 @@ impl App {
     /// Handle messages from background tasks
     pub fn handle_message(&mut self, msg: AppMessage, db: &NewsDB) {
         match msg {
-            AppMessage::RefreshComplete(items) => {
+            AppMessage::RefreshComplete { items, diagnostics } => {
+                // Collect database insertion errors
+                let mut db_errors = Vec::new();
                 for item in &items {
                     if let Err(e) = db.insert(item) {
-                        eprintln!("Failed to insert item: {}", e);
+                        db_errors.push(format!("{}", e));
                     }
                 }
-                let news = db.load_all();
+
+                // Build status message from diagnostics
+                let success_count = diagnostics.iter().filter(|d| d.success).count();
+                let fail_count = diagnostics.iter().filter(|d| !d.success).count();
+
+                let status_msg = if fail_count == 0 && db_errors.is_empty() {
+                    StatusMessage::success(
+                        format!("Fetched {} items from {} sources", items.len(), success_count)
+                    )
+                } else if success_count > 0 {
+                    let mut msg_parts = vec![
+                        format!("Fetched {} items from {} sources", items.len(), success_count)
+                    ];
+                    if fail_count > 0 {
+                        msg_parts.push(format!("{} sources failed", fail_count));
+                    }
+                    if !db_errors.is_empty() {
+                        msg_parts.push(format!("{} DB errors", db_errors.len()));
+                    }
+                    StatusMessage::warning(msg_parts.join("; "))
+                } else {
+                    StatusMessage::error("All sources failed to fetch".to_string())
+                };
+
+                self.status_bar.set_message(status_msg);
+
+                // Reload from database
+                let news = match db.load_all() {
+                    Ok(news) => news,
+                    Err(e) => {
+                        let msg = StatusMessage::error(
+                            format!("Failed to load from database: {}", e)
+                        );
+                        self.status_bar.set_message(msg);
+                        Vec::new()
+                    }
+                };
                 self.news_list.set_news(news);
 
                 // Update detail pane with first article after refresh
@@ -80,7 +124,8 @@ impl App {
                 self.app_state = AppState::Idle;
             }
             AppMessage::RefreshFailed(err) => {
-                eprintln!("Fetch failed: {}", err);
+                let msg = StatusMessage::error(format!("Fetch failed: {}", err));
+                self.status_bar.set_message(msg);
                 self.app_state = AppState::Idle;
             }
         }
@@ -89,6 +134,33 @@ impl App {
     /// Handle keyboard/mouse events
     /// Returns the Action emitted by components
     pub fn handle_event(&mut self, event: &Event) -> Action {
+        // Handle 'h' for history viewer (global shortcut)
+        if let Event::Key(KeyEvent {
+            code: KeyCode::Char('h'),
+            modifiers,
+            ..
+        }) = event
+        {
+            if modifiers.is_empty() && !self.search_bar.is_focused() {
+                let action = Action::ShowStatusHistory;
+                self.status_bar.update(&action);
+                return action;
+            }
+        }
+
+        // Handle 'Esc' to dismiss status messages
+        if let Event::Key(KeyEvent {
+            code: KeyCode::Esc,
+            ..
+        }) = event
+        {
+            if !self.search_bar.is_focused() {
+                let action = Action::DismissStatus;
+                self.status_bar.update(&action);
+                // Don't return early - Esc also exits search mode
+            }
+        }
+
         // Handle '/' to enter search mode
         if let Event::Key(KeyEvent {
             code: KeyCode::Char('/'),
@@ -110,6 +182,7 @@ impl App {
             if !matches!(action, Action::None) {
                 self.news_list.update(&action);
                 self.detail_pane.update(&action);
+                self.status_bar.update(&action);
                 return action;
             }
             // SearchBar returned Action::None, fall through to focused component
@@ -131,9 +204,10 @@ impl App {
             ComponentId::SearchBar => Action::None,
         };
 
-        // Broadcast action to all components
+        // Broadcast action to all components including status_bar
         self.news_list.update(&action);
         self.detail_pane.update(&action);
+        self.status_bar.update(&action);
 
         // Handle selection changes to update detail pane
         if let Action::SelectionChanged(_) = action {
@@ -174,11 +248,18 @@ impl App {
             Action::Quit => return false,
             Action::ArticleOpened(url) => {
                 if let Err(e) = open::that(url) {
-                    eprintln!("Failed to open browser: {}", e);
+                    let msg = StatusMessage::error(format!("Failed to open browser: {}", e));
+                    self.status_bar.set_message(msg);
                 }
             }
             _ => {}
         }
         true
+    }
+
+    /// Periodic update for spinner animation and auto-dismiss checks
+    pub fn tick(&mut self) {
+        self.status_bar.tick_spinner();
+        self.status_bar.check_auto_dismiss();
     }
 }

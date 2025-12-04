@@ -1,7 +1,7 @@
-use crossterm::event::Event;
-use ratatui::{Frame, layout::Rect};
-
 use crate::models::FilterState;
+use crate::ui::status_message::StatusMessage;
+use crossterm::event::Event;
+use ratatui::{layout::Rect, Frame};
 
 /// Actions that components can emit to coordinate with each other
 #[derive(Clone, Debug)]
@@ -13,6 +13,11 @@ pub enum Action {
     FilterApplied(FilterState),
     RefreshRequested,
     Quit,
+
+    // Status bar actions
+    StatusMessage(StatusMessage),
+    DismissStatus,
+    ShowStatusHistory,
 }
 
 /// Core trait that all UI components must implement
