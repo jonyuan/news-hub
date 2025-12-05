@@ -202,9 +202,7 @@ impl App {
 
             // If SearchBar handled it, broadcast and return
             if !matches!(action, Action::None) {
-                self.news_list.update(&action);
-                self.detail_pane.update(&action);
-                self.status_bar.update(&action);
+                self.update_all(&action);
                 return action;
             }
             // SearchBar returned Action::None, fall through to focused component
@@ -242,20 +240,26 @@ impl App {
             TabComponent::DetailPane => self.detail_pane.handle_event(event),
             TabComponent::StatusBar => self.status_bar.handle_event(event),
         };
+        self.update_all(&action);
+        action
+    }
 
+    fn update_all(&mut self, action: &Action) {
         // Broadcast action to all components including status_bar
         self.news_list.update(&action);
         self.detail_pane.update(&action);
+        self.search_bar.update(&action);
         self.status_bar.update(&action);
 
-        // Handle selection changes to update detail pane
-        if let Action::SelectionChanged(_) = action {
-            if let Some(selected_article) = self.news_list.selected_item() {
-                self.detail_pane.set_article(selected_article.clone());
+        // Handle selection changes that need to update detail pane
+        match action {
+            Action::SelectionChanged(_) | Action::SearchQueryChanged(_) => {
+                if let Some(selected_article) = self.news_list.selected_item() {
+                    self.detail_pane.set_article(selected_article.clone());
+                }
             }
+            _ => {}
         }
-
-        action
     }
 
     /// Tab to cycle focus (dynamic 2/3-way cycle based on history visibility)

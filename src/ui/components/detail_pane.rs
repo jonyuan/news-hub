@@ -68,9 +68,9 @@ impl Component for DetailPaneComponent {
     }
 
     fn update(&mut self, action: &Action) {
-        // Listen for selection changes from NewsListComponent
-        // Note: We'll need to get the actual article from NewsListComponent
-        // For now, this is a placeholder - we'll handle this in App
+        // This is not great, but we defer handling of SelectionChanged
+        // to the app, so that we don't need to get the actual article from NewsListComponent
+        // For now, this is a placeholder
         match action {
             _ => {}
         }

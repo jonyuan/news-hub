@@ -13,15 +13,15 @@
 
 - fast and more natural scroll UX
 - status bar message should wrap
-- search bar / message history UX
+- search bar / message history UX ✅
 - change published time in article detail to system local time
 
 ## 12.3.25
 
 - dynamic status message history component sizing ✅
-- scrollable features and scroll toggle between normal/message history
-- move the status bar logic from the app into its handle_event() method
-- fix unable to quit in detail_pane focus
+- scrollable features and scroll toggle between normal/message history ✅
+- move the status bar logic from the app into its handle_event() method ✅
+- fix unable to quit in detail_pane focus ✅
 - use dequeue for message history ✅
 - display warnings directly as a status message ✅
 
