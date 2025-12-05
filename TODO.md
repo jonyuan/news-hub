@@ -1,9 +1,11 @@
-# General Notes
-
 # Issues
 
 - Some RSS feeds are being dropped due to unparsable fields.
   - Investing.com Stocks
+
+# Wish List
+
+- browser content rendering within article detail
 
 # Todo List
 
@@ -12,6 +14,7 @@
 - fast and more natural scroll UX
 - status bar message should wrap
 - search bar / message history UX
+- change published time in article detail to system local time
 
 ## 12.3.25
 

@@ -16,6 +16,7 @@ pub struct StatusBarComponent {
     current_message: Option<StatusMessage>,
     message_history: VecDeque<StatusMessage>,
     show_history: bool,
+    focused: bool,
     history_scroll_offset: usize,
     spinner_frame: usize,
 }
@@ -26,6 +27,7 @@ impl StatusBarComponent {
             current_message: None,
             message_history: VecDeque::new(),
             show_history: false,
+            focused: false,
             history_scroll_offset: 0,
             spinner_frame: 0,
         }
@@ -79,9 +81,17 @@ impl StatusBarComponent {
         }
     }
 
-    /// deprecated: use is_focused() instead
+    /// Check if history is currently visible
     pub fn is_showing_history(&self) -> bool {
-        self.is_focused()
+        self.show_history
+    }
+
+    /// Toggle the visibility of the message history
+    pub fn toggle_history(&mut self) {
+        self.show_history = !self.show_history;
+        if !self.show_history {
+            self.reset_scroll();
+        }
     }
 
     pub fn tick_spinner(&mut self) {
@@ -130,13 +140,15 @@ impl StatusBarComponent {
             (display_text, Style::default().fg(color))
         } else {
             // Show help text when no status message
-            let help_text = "/: Search | Tab: Switch | ↑/↓: Nav | Enter/o: Open | r: Refresh | h: Status History | q: Quit";
+            let help_text = "/: Search | Tab: Switch | ↑/↓: Nav | Enter/o: Open | r: Refresh | Ctrl+H: Status History | q: Quit";
             (help_text.to_string(), Style::default().fg(Color::Gray))
         };
 
-        let paragraph = Paragraph::new(content)
-            .style(style)
-            .block(Block::default().borders(Borders::ALL));
+        let paragraph = Paragraph::new(content).style(style).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default()),
+        );
 
         f.render_widget(paragraph, area);
     }
@@ -180,21 +192,25 @@ impl StatusBarComponent {
             let up_arrow = if can_scroll_up { "↑" } else { " " };
             let down_arrow = if can_scroll_down { "↓" } else { " " };
             format!(
-                "Message History {} {}/{} {} (↑/↓: Scroll, h/Esc: Close)",
+                "Message History {} {}/{} {} (↑/↓: Scroll, Ctrl+H: Close)",
                 up_arrow,
                 self.history_scroll_offset + 1,
                 total_messages,
                 down_arrow
             )
         } else {
-            "Message History (h or Esc to close)".to_string()
+            "Message History (Ctrl+H to close)".to_string()
         };
 
         let paragraph = Paragraph::new(history_text).block(
             Block::default()
                 .title(title)
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Yellow)),
+                .border_style(if self.focused {
+                    Style::default().fg(Color::Yellow)
+                } else {
+                    Style::default()
+                }),
         );
 
         f.render_widget(paragraph, area);
@@ -203,18 +219,18 @@ impl StatusBarComponent {
 
 impl Component for StatusBarComponent {
     fn handle_event(&mut self, event: &Event) -> Action {
-        // Only handle events when history is showing
-        if !self.show_history {
+        // Only handle scroll events when BOTH focused AND history is showing
+        if !self.is_focused() {
             return Action::None;
         }
 
         if let Event::Key(KeyEvent { code, .. }) = event {
             match code {
-                KeyCode::Up => {
+                KeyCode::Up if self.show_history => {
                     self.scroll_history_up();
                     Action::None
                 }
-                KeyCode::Down => {
+                KeyCode::Down if self.show_history => {
                     self.scroll_history_down();
                     Action::None
                 }
@@ -246,14 +262,10 @@ impl Component for StatusBarComponent {
     }
 
     fn is_focused(&self) -> bool {
-        self.show_history
+        self.focused
     }
 
     fn set_focus(&mut self, focused: bool) {
-        // StatusBar "focus" means it is showing history
-        self.show_history = focused;
-        if !focused {
-            self.reset_scroll();
-        }
+        self.focused = focused;
     }
 }

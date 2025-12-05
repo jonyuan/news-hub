@@ -106,12 +106,6 @@ impl Component for NewsListComponent {
                         return Action::ArticleOpened(item.url.clone());
                     }
                 }
-                KeyCode::Char('r') => {
-                    return Action::RefreshRequested;
-                }
-                KeyCode::Char('q') => {
-                    return Action::Quit;
-                }
                 _ => {}
             }
         }

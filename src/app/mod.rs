@@ -1,4 +1,4 @@
-use crossterm::event::{Event, KeyCode, KeyEvent};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 
 use crate::adaptors::FetchDiagnostic;
 use crate::db::sqlite::NewsDB;
@@ -10,10 +10,10 @@ use crate::ui::{
 
 /// Identifies which component currently has focus
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ComponentId {
-    SearchBar,
+pub enum TabComponent {
     NewsList,
     DetailPane,
+    StatusBar,
 }
 
 /// Messages sent from background tasks to main event loop
@@ -40,7 +40,7 @@ pub struct App {
     pub detail_pane: DetailPaneComponent,
     pub status_bar: StatusBarComponent,
     pub app_state: AppState,
-    pub focused_component: ComponentId,
+    pub focused_component: TabComponent,
 }
 
 impl App {
@@ -65,7 +65,7 @@ impl App {
             detail_pane,
             status_bar: StatusBarComponent::new(),
             app_state: AppState::Idle,
-            focused_component: ComponentId::NewsList,
+            focused_component: TabComponent::NewsList,
         }
     }
 
@@ -89,9 +89,7 @@ impl App {
                 let warnings: Vec<String> = diagnostics
                     .iter()
                     .filter(|d| d.success && !d.warnings.is_empty())
-                    .flat_map(|d| {
-                        d.warnings.iter().map(|w| format!("{}: {}", d.source, w))
-                    })
+                    .flat_map(|d| d.warnings.iter().map(|w| format!("{}: {}", d.source, w)))
                     .collect();
 
                 let has_warnings = !warnings.is_empty();
@@ -151,33 +149,33 @@ impl App {
         }
     }
 
-    /// Handle keyboard/mouse events
-    /// Returns the Action emitted by components
+    /// handle keyboard/mouse events. Returns the Action emitted by components
     pub fn handle_event(&mut self, event: &Event) -> Action {
-        // TODO: move the status bar logic into its handle_event() method
         if let Event::Key(KeyEvent {
             code: KeyCode::Char('h'),
-            modifiers,
+            modifiers: KeyModifiers::CONTROL,
             ..
         }) = event
         {
-            if modifiers.is_empty() && !self.search_bar.is_focused() {
-                self.status_bar.set_focus(!self.status_bar.is_focused());
-                return Action::None;
+            let was_showing = self.status_bar.is_showing_history();
+            self.status_bar.toggle_history();
+            let is_showing = self.status_bar.is_showing_history();
+
+            // If we just closed history and StatusBar was focused, move focus to NewsList
+            if was_showing && !is_showing && self.focused_component == TabComponent::StatusBar {
+                self.status_bar.set_focus(false);
+                self.news_list.set_focus(true);
+                self.focused_component = TabComponent::NewsList;
             }
+
+            return Action::None;
         }
 
+        // Esc is an overloaded event. This one checks only for dismissing status
         if let Event::Key(KeyEvent {
             code: KeyCode::Esc, ..
         }) = event
         {
-            // Esc is a triple-overloaded event:
-            // leave the status bar, dismiss messsage, or leave search
-            // (handled by search_bar.handle_event())
-            if self.status_bar.is_focused() {
-                self.status_bar.set_focus(false);
-                return Action::None;
-            }
             if !self.search_bar.is_focused() {
                 let action = Action::DismissStatus;
                 self.status_bar.update(&action);
@@ -199,7 +197,6 @@ impl App {
             }
         }
 
-        // check if we are in search mode
         if self.search_bar.is_focused() {
             let action = self.search_bar.handle_event(event);
 
@@ -213,7 +210,7 @@ impl App {
             // SearchBar returned Action::None, fall through to focused component
         }
 
-        // Handle Tab key for focus switching
+        // tab is unique
         if let Event::Key(KeyEvent {
             code: KeyCode::Tab, ..
         }) = event
@@ -222,20 +219,28 @@ impl App {
             return Action::None;
         }
 
-        // Route Up/Down keys to status bar when history is shown
-        if self.status_bar.is_showing_history() {
-            if let Event::Key(KeyEvent { code, .. }) = event {
-                if matches!(code, KeyCode::Up | KeyCode::Down) {
-                    return self.status_bar.handle_event(event);
-                }
-            }
+        // 'r' and 'q' should be handled by the app globally at this point
+        if let Event::Key(KeyEvent {
+            code: KeyCode::Char('r'),
+            ..
+        }) = event
+        {
+            return Action::RefreshRequested;
         }
 
-        // Route to focused component (NewsList or DetailPane)
+        if let Event::Key(KeyEvent {
+            code: KeyCode::Char('q'),
+            ..
+        }) = event
+        {
+            return Action::Quit;
+        }
+
+        // Route to focused component (NewsList, DetailPane, or StatusBar)
         let action = match self.focused_component {
-            ComponentId::NewsList => self.news_list.handle_event(event),
-            ComponentId::DetailPane => self.detail_pane.handle_event(event),
-            ComponentId::SearchBar => Action::None,
+            TabComponent::NewsList => self.news_list.handle_event(event),
+            TabComponent::DetailPane => self.detail_pane.handle_event(event),
+            TabComponent::StatusBar => self.status_bar.handle_event(event),
         };
 
         // Broadcast action to all components including status_bar
@@ -253,24 +258,30 @@ impl App {
         action
     }
 
-    /// Cycle focus between NewsList and DetailPane only (Tab key)
+    /// Tab to cycle focus (dynamic 2/3-way cycle based on history visibility)
     fn cycle_focus(&mut self) {
         self.focused_component = match self.focused_component {
-            ComponentId::NewsList => {
+            TabComponent::NewsList => {
                 self.news_list.set_focus(false);
                 self.detail_pane.set_focus(true);
-                ComponentId::DetailPane
+                TabComponent::DetailPane
             }
-            ComponentId::DetailPane => {
+            TabComponent::DetailPane => {
                 self.detail_pane.set_focus(false);
-                self.news_list.set_focus(true);
-                ComponentId::NewsList
+                // Only include StatusBar in cycle if history is showing
+                if self.status_bar.is_showing_history() {
+                    self.status_bar.set_focus(true);
+                    TabComponent::StatusBar
+                } else {
+                    // Skip StatusBar, go back to NewsList
+                    self.news_list.set_focus(true);
+                    TabComponent::NewsList
+                }
             }
-            ComponentId::SearchBar => {
-                // Should not reach here, but default to NewsList
-                self.search_bar.set_focus(false);
+            TabComponent::StatusBar => {
+                self.status_bar.set_focus(false);
                 self.news_list.set_focus(true);
-                ComponentId::NewsList
+                TabComponent::NewsList
             }
         };
     }
